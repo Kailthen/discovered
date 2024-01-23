@@ -13,7 +13,8 @@ setup(
     platforms='any',
     install_requires=[
         'redis',
-        'psutil'
+        'psutil',
+        'distro'
     ],
     keywords=[
         'Redis',

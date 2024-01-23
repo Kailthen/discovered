@@ -9,6 +9,7 @@ import platform
 import os
 import datetime
 import sys
+import distro
 
 class ServiceDiscovery:
     '''
@@ -30,11 +31,11 @@ class ServiceDiscovery:
         self.ttl = ttl
         self.auto = auto
         self.sg = 'discovered:{}'.format(service_group)
-        self.r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db, password=redis_auth)
+        self.r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db, password=redis_auth, decode_responses=True)
         self.r.set('{}:{}'.format(self.sg, '__init__'), time.time())
         return
 
-    def register_service(self, service_name, endpoint, endpoint_type='', auth_type=None, auth_credentials=None, backend='', description=''):
+    def register_service(self, service_name, endpoint, endpoint_type='', auth_type='', auth_credentials='', backend='', description=''):
         '''
         @param service_name str
         @param endpoint str
@@ -52,11 +53,11 @@ class ServiceDiscovery:
             'auth_credentials' : auth_credentials,
             'backend' : backend,
             'description' : description
-        }   
+        }
         self.r.hmset('{}:{}:{}'.format(self.sg, service_name, 'info'), info)
         return info
 
-    def register_node(self, service_name, node_name, ip=None, fqdn=None, os=None, platform_name=None, arch=None, cpu_count=None, memory=None, last_boot=None, auto=True):
+    def register_node(self, service_name, node_name, ip='', fqdn='', os='', platform_name='', arch='', cpu_count=-1, memory=-1, last_boot='', auto=True):
         '''
         @param service_name str
         @param node_name str
@@ -67,7 +68,7 @@ class ServiceDiscovery:
         '''
         info = {
             'node_name' : node_name,
-            'ip' : [ ip ],
+            'ip' : ip,
             'fqdn' : fqdn,
             'os' : os,
             'platform' : platform_name,
@@ -77,19 +78,19 @@ class ServiceDiscovery:
             'last_boot' : last_boot,
             'py_version' : platform.python_version(),
             'py_name' : __name__,
-            'py_args' : sys.argv
+            'py_args' : ','.join(sys.argv)
         }
         if self.auto and auto:
             ip = []
-            for name,iface in psutil.net_if_addrs().iteritems():
+            for name,iface in psutil.net_if_addrs().items():
                 for obj in iface:
                     if obj.family == 2:
                         ip.append(obj.address)
-            info['ip'] = ip
+            info['autoip'] = ','.join(ip)
             info['fqdn'] = socket.getfqdn()
             info['os'] = platform.system()
             if info['os'] == 'Linux':
-                info['platform'] = '{} ({})'.format(platform.platform(), platform.linux_distribution()[0])
+                info['platform'] = '{} ({})'.format(platform.platform(), '-'.join(distro.linux_distribution()))
             else:
                 info['platform'] = platform.platform()
             info['arch'] = platform.architecture()[0]
@@ -153,7 +154,7 @@ class ServiceDiscovery:
         '''
         scan = []
         services = []
-        for s in self.r.scan_iter('{}:*'.format(self.sg)):
+        for s in self.r.scan_iter('{}:*'.format(self.sg), _type='STRING'):
             scan.append(s)
         for i in scan:
             x = i.split(':')

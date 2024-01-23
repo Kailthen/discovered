@@ -5,7 +5,11 @@ from pprint import pprint
 import discovered
 
 
-sd = discovered.ServiceDiscovery()
+redis_host="192.168.3.39"
+redis_port=6301
+service_group='test'
+    
+sd = discovered.ServiceDiscovery(redis_host=redis_host, redis_port=redis_port, service_group=service_group, ttl=10)
 
 print('register service')
 x = sd.register_service(service_name='redis', endpoint='localhost:6379', endpoint_type='keystore', backend='redis', description='redis keystore')
